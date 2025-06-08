@@ -81,7 +81,7 @@ func NewViewport(width, height int) *Viewport {
 }
 
 func (v *Viewport) AppendBlock(b Block) int {
-	s := b.String()
+	s := v.widthAdjustedString(b.String())
 	blockHeight := lipgloss.Height(s)
 
 	v.blocks = append(v.blocks, blockState{
@@ -103,7 +103,7 @@ func (v *Viewport) AppendBlock(b Block) int {
 }
 
 func (v *Viewport) AppendFoldedBlock(b Block) int {
-	s := b.FoldedString()
+	s := v.widthAdjustedString(b.FoldedString())
 	blockHeight := lipgloss.Height(s)
 
 	v.blocks = append(v.blocks, blockState{
@@ -133,6 +133,10 @@ func (v *Viewport) ScrollUp(lines int) {
 }
 
 func (v *Viewport) View() string {
+	if v.width == 0 || v.height == 0 {
+		return ""
+	}
+
 	contentBuilder := strings.Builder{}
 
 	var currentBlock blockState
@@ -233,9 +237,9 @@ func (v *Viewport) ToggleCurrentBlock() {
 	var newContent string
 	newFolded := false
 	if v.blocks[i].folded {
-		newContent = v.blocks[i].block.String()
+		newContent = v.widthAdjustedString(v.blocks[i].block.String())
 	} else {
-		newContent = v.blocks[i].block.FoldedString()
+		newContent = v.widthAdjustedString(v.blocks[i].block.FoldedString())
 		newFolded = true
 	}
 
@@ -256,6 +260,7 @@ func (v *Viewport) ToggleCurrentBlock() {
 	}
 
 	v.totalLines -= lengthDiff
+	v.currentLine = min(v.currentLine, v.totalLines-1)
 }
 
 func (v *Viewport) CurrentBlockIndex() int {
@@ -276,6 +281,37 @@ func (v *Viewport) SetSize(width, height int) {
 		MaxHeight(height)
 
 	v.currentBlockStyle = v.currentBlockStyle.Width(width)
+
+	v.totalLines = 0
+	v.lines = []string{}
+	for i, bst := range v.blocks {
+		var s string
+		if bst.folded {
+			s = bst.block.FoldedString()
+		} else {
+			s = bst.block.String()
+		}
+		s = v.widthAdjustedString(s)
+
+		blockHeight := lipgloss.Height(s)
+
+		v.blocks[i] = blockState{
+			block:  bst.block,
+			start:  v.totalLines,
+			end:    v.totalLines + blockHeight - 1,
+			folded: bst.folded,
+		}
+
+		v.totalLines += blockHeight
+
+		v.lines = append(v.lines, strings.Split(s, "\n")...)
+
+		if v.totalLines != len(v.lines) {
+			panic(fmt.Sprintf("totalLines != len(lines): %d != %d", v.totalLines, len(v.lines)))
+		}
+	}
+
+	v.currentLine = min(v.currentLine, v.totalLines-1)
 }
 
 func (v *Viewport) GetWidth() int {
@@ -295,7 +331,7 @@ func (v *Viewport) ScrollPercent() float64 {
 }
 
 func (v *Viewport) GotoBottom() {
-	v.currentLine = v.totalLines - 1
+	v.currentLine = max(0, v.totalLines-v.height)
 }
 
 func (v *Viewport) GotoTop() {
@@ -308,4 +344,8 @@ func (v *Viewport) GotoLine(line int) {
 
 func (v *Viewport) GetCurrentLine() int {
 	return v.currentLine
+}
+
+func (v *Viewport) widthAdjustedString(s string) string {
+	return lipgloss.NewStyle().Width(v.width).Render(s)
 }
