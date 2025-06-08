@@ -26,12 +26,12 @@ func NewREPL(e Evaluator) *REPL {
 		evaluator: e,
 
 		prompt: NewPrompt(),
-		vp:     NewViewport(15, 20),
+		vp:     NewViewport(0, 0),
 	}
 }
 
 func (r *REPL) Init() tea.Cmd {
-	return nil
+	return nil // tea.WindowSize()
 }
 
 func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -85,8 +85,8 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			if keys == "q" || keys == "ctrl+c" || keys == "esc" {
-				r.vp.GotoBottom()
 				r.readOnlyMode = false
+				r.vp.DisableBlockHighlight()
 				r.vp.GotoBottom()
 				return r, nil
 			}
@@ -127,6 +127,7 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "esc":
 			r.readOnlyMode = true
+			r.vp.EnableBlockHighlight()
 
 		default:
 			if !r.commandRunning {
@@ -139,6 +140,7 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		block := StringBlock{fmt.Sprintf("%s\nError: %s", r.commandRunningPrompt, msg.err.Error())}
 		r.vp.AppendBlock(block)
 		if !r.readOnlyMode {
+			r.vp.DisableBlockHighlight()
 			r.vp.GotoBottom()
 		}
 
@@ -155,6 +157,7 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			block := StringBlock{fmt.Sprintf("%s\n%s", r.commandRunningPrompt, msg.result.Output)}
 			r.vp.AppendBlock(block)
 			if !r.readOnlyMode {
+				r.vp.DisableBlockHighlight()
 				r.vp.GotoBottom()
 			}
 
@@ -164,6 +167,13 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		r.activeView = msg.result.View
 		cmd := r.activeView.Init()
 		return r, cmd
+
+	case tea.WindowSizeMsg:
+		vpHeight := max(0, msg.Height-1)
+		vpWidth := max(0, msg.Width)
+
+		r.vp.SetSize(vpWidth, vpHeight)
+		return r, nil
 	}
 
 	return r, nil

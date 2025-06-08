@@ -76,7 +76,7 @@ func NewViewport(width, height int) *Viewport {
 			Background(lipgloss.Color("#3F3F3F")).
 			Width(width),
 
-		highlightCurrentBlock: true,
+		highlightCurrentBlock: false,
 	}
 }
 
@@ -147,6 +147,7 @@ func (v *Viewport) View() string {
 	lineCount := 0
 	currentBlockContent := ""
 	limit := min(v.currentLine+v.height, v.totalLines)
+
 	for l := v.currentLine; l < limit; l++ {
 		// Handle highlight of current block
 		if l >= currentBlock.start && l < currentBlock.end {
@@ -260,7 +261,7 @@ func (v *Viewport) ToggleCurrentBlock() {
 	}
 
 	v.totalLines -= lengthDiff
-	v.currentLine = min(v.currentLine, v.totalLines-1)
+	v.currentLine = max(0, min(v.currentLine, v.totalLines-1))
 }
 
 func (v *Viewport) CurrentBlockIndex() int {
@@ -281,6 +282,10 @@ func (v *Viewport) SetSize(width, height int) {
 		MaxHeight(height)
 
 	v.currentBlockStyle = v.currentBlockStyle.Width(width)
+
+	if v.width == 0 || v.height == 0 {
+		return
+	}
 
 	v.totalLines = 0
 	v.lines = []string{}
@@ -311,7 +316,7 @@ func (v *Viewport) SetSize(width, height int) {
 		}
 	}
 
-	v.currentLine = min(v.currentLine, v.totalLines-1)
+	v.currentLine = max(0, min(v.currentLine, v.totalLines-1))
 }
 
 func (v *Viewport) GetWidth() int {
@@ -348,4 +353,12 @@ func (v *Viewport) GetCurrentLine() int {
 
 func (v *Viewport) widthAdjustedString(s string) string {
 	return lipgloss.NewStyle().Width(v.width).Render(s)
+}
+
+func (v *Viewport) EnableBlockHighlight() {
+	v.highlightCurrentBlock = true
+}
+
+func (v *Viewport) DisableBlockHighlight() {
+	v.highlightCurrentBlock = false
 }
