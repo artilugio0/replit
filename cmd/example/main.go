@@ -10,7 +10,12 @@ import (
 )
 
 func main() {
-	repl := replit.NewREPL(Evaluator{})
+	repl := replit.NewREPL(Evaluator{}, replit.WithPromptInitialSuggestions([]string{
+		"hi",
+		"multi",
+		"slow",
+		"vvv",
+	}))
 
 	p := tea.NewProgram(repl, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {

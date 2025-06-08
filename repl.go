@@ -20,14 +20,19 @@ type REPL struct {
 	activeView tea.Model
 }
 
-func NewREPL(e Evaluator) *REPL {
-
-	return &REPL{
+func NewREPL(e Evaluator, opts ...REPLOption) *REPL {
+	r := &REPL{
 		evaluator: e,
 
 		prompt: NewPrompt(),
 		vp:     NewViewport(ShowEmptyLines(false)),
 	}
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	return r
 }
 
 func (r *REPL) Init() tea.Cmd {
@@ -90,41 +95,39 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+d":
 			return r, tea.Quit
 
-		case "enter":
-			if r.commandRunning {
-				return r, nil
-			}
-
-			input := r.prompt.Value()
-			if input == "" {
-				return r, nil
-			}
-			r.prompt.SetValue("")
-
-			r.commandRunningPrompt = r.prompt.PromptString() + input
-
-			cmd := func() tea.Msg {
-				result, err := r.evaluator.Eval(input)
-				if err != nil {
-					return msgEvalErr{err}
-				}
-
-				return msgEvalOk{result}
-			}
-
-			r.commandRunning = true
-
-			return r, cmd
-
 		case "esc":
 			r.readOnlyMode = true
 			r.vp.EnableBlockHighlight()
 
 		default:
 			if !r.commandRunning {
-				r.prompt.Update(msg)
+				np, cmd := r.prompt.Update(msg)
+				r.prompt = np.(*Prompt)
+				return r, cmd
 			}
 		}
+
+	case inputRequest:
+		if r.commandRunning {
+			return r, nil
+		}
+
+		input := msg.input
+
+		r.commandRunningPrompt = r.prompt.PromptString() + input
+
+		cmd := func() tea.Msg {
+			result, err := r.evaluator.Eval(input)
+			if err != nil {
+				return msgEvalErr{err}
+			}
+
+			return msgEvalOk{result}
+		}
+
+		r.commandRunning = true
+
+		return r, cmd
 
 	case msgEvalErr:
 		r.commandRunning = false
@@ -209,7 +212,19 @@ type msgEvalOk struct {
 	result *Result
 }
 
+type inputRequest struct {
+	input string
+}
+
 type ExitView struct {
 	Output string
 	Error  error
+}
+
+type REPLOption func(*REPL)
+
+func WithPromptInitialSuggestions(s []string) REPLOption {
+	return func(r *REPL) {
+		WithInitialSuggestions(s)(r.prompt)
+	}
 }
