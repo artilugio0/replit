@@ -55,29 +55,37 @@ type Viewport struct {
 	currentBlockStyle lipgloss.Style
 
 	highlightCurrentBlock bool
+
+	showEmptyLines bool
 }
 
-func NewViewport(width, height int) *Viewport {
-	return &Viewport{
+func NewViewport(viewportOptions ...ViewportOption) *Viewport {
+	vp := &Viewport{
 		blocks: []blockState{},
 		lines:  []string{},
 
-		width:  width,
-		height: height,
+		width:  0,
+		height: 0,
 
 		currentLine: 0,
 		totalLines:  0,
 
 		style: lipgloss.NewStyle().
-			Width(width).
-			MaxHeight(height),
+			Width(0).
+			MaxHeight(0),
 
 		currentBlockStyle: lipgloss.NewStyle().
 			Background(lipgloss.Color("#3F3F3F")).
-			Width(width),
+			Width(0),
 
 		highlightCurrentBlock: false,
 	}
+
+	for _, opt := range viewportOptions {
+		opt(vp)
+	}
+
+	return vp
 }
 
 func (v *Viewport) AppendBlock(b Block) int {
@@ -133,7 +141,7 @@ func (v *Viewport) ScrollUp(lines int) {
 }
 
 func (v *Viewport) View() string {
-	if v.width == 0 || v.height == 0 {
+	if v.totalLines == 0 || v.width == 0 || v.height == 0 {
 		return ""
 	}
 
@@ -160,7 +168,9 @@ func (v *Viewport) View() string {
 				contentBuilder.WriteString(currentBlockContent)
 			}
 
-			contentBuilder.WriteRune('\n')
+			if l < v.totalLines-1 {
+				contentBuilder.WriteRune('\n')
+			}
 			// End Handle highlight of current block
 		} else {
 			contentBuilder.WriteString(v.lines[l])
@@ -183,8 +193,10 @@ func (v *Viewport) View() string {
 	}
 	// End Handle highlight of current block
 
-	for ; lineCount < v.height; lineCount++ {
-		contentBuilder.WriteRune('\n')
+	if v.showEmptyLines {
+		for ; lineCount < v.height; lineCount++ {
+			contentBuilder.WriteRune('\n')
+		}
 	}
 
 	content := contentBuilder.String()
@@ -361,4 +373,16 @@ func (v *Viewport) EnableBlockHighlight() {
 
 func (v *Viewport) DisableBlockHighlight() {
 	v.highlightCurrentBlock = false
+}
+
+func (v *Viewport) TotalLines() int {
+	return v.totalLines
+}
+
+type ViewportOption func(*Viewport)
+
+func ShowEmptyLines(yes bool) ViewportOption {
+	return func(vp *Viewport) {
+		vp.showEmptyLines = yes
+	}
 }

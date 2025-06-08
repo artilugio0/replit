@@ -12,7 +12,7 @@ import (
 func main() {
 	repl := replit.NewREPL(Evaluator{})
 
-	p := tea.NewProgram(repl)
+	p := tea.NewProgram(repl, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)

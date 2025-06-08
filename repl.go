@@ -26,12 +26,12 @@ func NewREPL(e Evaluator) *REPL {
 		evaluator: e,
 
 		prompt: NewPrompt(),
-		vp:     NewViewport(0, 0),
+		vp:     NewViewport(ShowEmptyLines(false)),
 	}
 }
 
 func (r *REPL) Init() tea.Cmd {
-	return nil // tea.WindowSize()
+	return nil
 }
 
 func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -75,15 +75,6 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		keys := msg.String()
 
 		if r.readOnlyMode {
-			if keys == "l" {
-				r.vp.SetSize(min(50, r.vp.GetWidth()+5), r.vp.GetHeight())
-				return r, nil
-			}
-			if keys == "h" {
-				r.vp.SetSize(max(15, r.vp.GetWidth()-5), r.vp.GetHeight())
-				return r, nil
-			}
-
 			if keys == "q" || keys == "ctrl+c" || keys == "esc" {
 				r.readOnlyMode = false
 				r.vp.DisableBlockHighlight()
@@ -173,6 +164,7 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		vpWidth := max(0, msg.Width)
 
 		r.vp.SetSize(vpWidth, vpHeight)
+		r.vp.GotoBottom()
 		return r, nil
 	}
 
@@ -185,7 +177,9 @@ func (r *REPL) View() string {
 	}
 
 	result := r.vp.View()
-	result += "\n"
+	if result != "" {
+		result += "\n"
+	}
 
 	if r.readOnlyMode {
 		result += fmt.Sprintf("-- %d%% --", int(r.vp.ScrollPercent()*100))
