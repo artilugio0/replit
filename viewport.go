@@ -141,7 +141,7 @@ func (v *Viewport) ScrollUp(lines int) {
 }
 
 func (v *Viewport) View() string {
-	if v.totalLines == 0 || v.width == 0 || v.height == 0 {
+	if v.totalLines == 0 || v.width == 0 || v.availableLines() == 0 {
 		return ""
 	}
 
@@ -154,7 +154,7 @@ func (v *Viewport) View() string {
 
 	lineCount := 0
 	currentBlockContent := ""
-	limit := min(v.currentLine+v.height, v.totalLines)
+	limit := min(v.currentLine+v.availableLines(), v.totalLines)
 
 	for l := v.currentLine; l < limit; l++ {
 		// Handle highlight of current block
@@ -194,7 +194,7 @@ func (v *Viewport) View() string {
 	// End Handle highlight of current block
 
 	if v.showEmptyLines {
-		for ; lineCount < v.height; lineCount++ {
+		for ; lineCount < v.availableLines(); lineCount++ {
 			contentBuilder.WriteRune('\n')
 		}
 	}
@@ -287,11 +287,10 @@ func (v *Viewport) CurrentBlockIndex() int {
 
 func (v *Viewport) SetSize(width, height int) {
 	v.width = width
-	v.height = height - v.style.GetBorderTopSize() - v.style.GetBorderBottomSize()
+	v.height = height
 
 	v.style = v.style.
 		Width(width - v.style.GetBorderLeftSize() - v.style.GetBorderRightSize()).
-		Height(height - v.style.GetBorderTopSize() - v.style.GetBorderBottomSize()).
 		MaxHeight(height)
 
 	v.currentBlockStyle = v.currentBlockStyle.Width(width)
@@ -349,7 +348,7 @@ func (v *Viewport) ScrollPercent() float64 {
 }
 
 func (v *Viewport) GotoBottom() {
-	v.currentLine = max(0, v.totalLines-v.height)
+	v.currentLine = max(0, v.totalLines-v.availableLines())
 }
 
 func (v *Viewport) GotoTop() {
@@ -385,6 +384,10 @@ func (v *Viewport) TotalLines() int {
 func (v *Viewport) SetStyle(style lipgloss.Style) {
 	v.style = style
 	v.SetSize(v.width, v.height)
+}
+
+func (v *Viewport) availableLines() int {
+	return max(0, v.height-v.style.GetBorderTopSize()-v.style.GetBorderBottomSize())
 }
 
 func (v *Viewport) Clear() {
