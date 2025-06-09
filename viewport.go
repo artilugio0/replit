@@ -168,14 +168,14 @@ func (v *Viewport) View() string {
 				contentBuilder.WriteString(currentBlockContent)
 			}
 
-			if l < v.totalLines-1 {
+			if l < limit-1 {
 				contentBuilder.WriteRune('\n')
 			}
 			// End Handle highlight of current block
 		} else {
 			contentBuilder.WriteString(v.lines[l])
 
-			if l < v.totalLines-1 {
+			if l < limit-1 {
 				contentBuilder.WriteRune('\n')
 			}
 		}
@@ -287,10 +287,11 @@ func (v *Viewport) CurrentBlockIndex() int {
 
 func (v *Viewport) SetSize(width, height int) {
 	v.width = width
-	v.height = height
+	v.height = height - v.style.GetBorderTopSize() - v.style.GetBorderBottomSize()
 
 	v.style = v.style.
-		Width(width).
+		Width(width - v.style.GetBorderLeftSize() - v.style.GetBorderRightSize()).
+		Height(height - v.style.GetBorderTopSize() - v.style.GetBorderBottomSize()).
 		MaxHeight(height)
 
 	v.currentBlockStyle = v.currentBlockStyle.Width(width)
@@ -364,7 +365,9 @@ func (v *Viewport) GetCurrentLine() int {
 }
 
 func (v *Viewport) widthAdjustedString(s string) string {
-	return lipgloss.NewStyle().Width(v.width).Render(s)
+	return lipgloss.NewStyle().
+		Width(v.width - v.style.GetBorderLeftSize() - v.style.GetBorderRightSize()).
+		Render(s)
 }
 
 func (v *Viewport) EnableBlockHighlight() {
@@ -377,6 +380,11 @@ func (v *Viewport) DisableBlockHighlight() {
 
 func (v *Viewport) TotalLines() int {
 	return v.totalLines
+}
+
+func (v *Viewport) SetStyle(style lipgloss.Style) {
+	v.style = style
+	v.SetSize(v.width, v.height)
 }
 
 func (v *Viewport) Clear() {
