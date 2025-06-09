@@ -293,7 +293,7 @@ func (v *Viewport) SetSize(width, height int) {
 		Width(width - v.style.GetBorderLeftSize() - v.style.GetBorderRightSize()).
 		MaxHeight(height)
 
-	v.currentBlockStyle = v.currentBlockStyle.Width(width)
+	v.currentBlockStyle = v.currentBlockStyle.Width(width - v.style.GetBorderLeftSize() - v.style.GetBorderRightSize())
 
 	if v.width == 0 || v.height == 0 {
 		return
