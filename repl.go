@@ -113,6 +113,10 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		input := msg.input
+		if input == "clear" {
+			r.Clear()
+			return r, nil
+		}
 
 		r.commandRunningPrompt = r.prompt.PromptString() + input
 
@@ -193,6 +197,10 @@ func (r *REPL) View() string {
 	}
 
 	return result
+}
+
+func (r *REPL) Clear() {
+	r.vp.Clear()
 }
 
 type Evaluator interface {

@@ -379,6 +379,13 @@ func (v *Viewport) TotalLines() int {
 	return v.totalLines
 }
 
+func (v *Viewport) Clear() {
+	v.blocks = []blockState{}
+	v.lines = []string{}
+	v.currentLine = 0
+	v.totalLines = 0
+}
+
 type ViewportOption func(*Viewport)
 
 func ShowEmptyLines(yes bool) ViewportOption {
