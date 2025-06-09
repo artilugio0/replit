@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type REPL struct {
@@ -31,10 +30,6 @@ func NewREPL(e Evaluator, opts ...REPLOption) *REPL {
 		prompt: NewPrompt(),
 		vp:     NewViewport(ShowEmptyLines(false)),
 	}
-
-	r.vp.SetStyle(lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("63")))
 
 	for _, opt := range opts {
 		opt(r)
