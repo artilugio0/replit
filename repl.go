@@ -17,6 +17,9 @@ type REPL struct {
 	commandRunning       bool
 	commandRunningPrompt string
 
+	width  int
+	height int
+
 	activeView tea.Model
 }
 
@@ -167,6 +170,9 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return r, cmd
 
 	case tea.WindowSizeMsg:
+		r.width = msg.Width
+		r.height = msg.Height
+
 		vpHeight := max(0, msg.Height-1)
 		vpWidth := max(0, msg.Width)
 
@@ -201,6 +207,14 @@ func (r *REPL) View() string {
 
 func (r *REPL) Clear() {
 	r.vp.Clear()
+}
+
+func (r *REPL) GetWidth() int {
+	return r.width
+}
+
+func (r *REPL) GetHeight() int {
+	return r.height
 }
 
 type Evaluator interface {
