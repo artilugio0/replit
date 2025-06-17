@@ -85,6 +85,7 @@ func (r *REPL) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if r.readOnlyMode {
 			if keys == "q" || keys == "ctrl+c" || keys == "esc" {
 				r.readOnlyMode = false
+				r.vp.EnableNormalMode()
 				r.vp.DisableBlockHighlight()
 				r.vp.GotoBottom()
 				return r, nil

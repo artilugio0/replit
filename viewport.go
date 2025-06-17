@@ -4,8 +4,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+)
+
+type viewportMode int
+
+const (
+	viewportModeNormal viewportMode = iota
+	viewportModeSearch
+	viewportModeSearchNavigation
 )
 
 type StringBlock struct {
@@ -57,6 +66,12 @@ type Viewport struct {
 	highlightCurrentBlock bool
 
 	showEmptyLines bool
+
+	currentMode viewportMode
+
+	searchInput         textinput.Model
+	searchResults       []int
+	currentSearchResult int
 }
 
 func NewViewport(viewportOptions ...ViewportOption) *Viewport {
@@ -79,6 +94,8 @@ func NewViewport(viewportOptions ...ViewportOption) *Viewport {
 			Width(0),
 
 		highlightCurrentBlock: false,
+
+		currentMode: viewportModeNormal,
 	}
 
 	for _, opt := range viewportOptions {
@@ -152,11 +169,17 @@ func (v *Viewport) View() string {
 		currentBlock = v.blocks[v.CurrentBlockIndex()]
 	}
 
+	availableLines := v.availableLines()
+	currentLine := v.currentLine
+	if v.currentMode == viewportModeSearch || v.currentMode == viewportModeSearchNavigation {
+		availableLines = max(0, availableLines-1)
+	}
+
 	lineCount := 0
 	currentBlockContent := ""
-	limit := min(v.currentLine+v.availableLines(), v.totalLines)
+	limit := min(currentLine+availableLines, v.totalLines)
 
-	for l := v.currentLine; l < limit; l++ {
+	for l := currentLine; l < limit; l++ {
 		// Handle highlight of current block
 		if l >= currentBlock.start && l < currentBlock.end {
 			currentBlockContent += v.lines[l] + "\n"
@@ -194,17 +217,38 @@ func (v *Viewport) View() string {
 	// End Handle highlight of current block
 
 	if v.showEmptyLines {
-		for ; lineCount < v.availableLines(); lineCount++ {
+		for ; lineCount < availableLines; lineCount++ {
 			contentBuilder.WriteRune('\n')
 		}
 	}
 
 	content := contentBuilder.String()
 
+	if v.currentMode == viewportModeSearch {
+		content += v.searchInput.View()
+	} else if v.currentMode == viewportModeSearchNavigation {
+		if len(v.searchResults) > 0 {
+			content += fmt.Sprintf("%d / %d matches", v.currentSearchResult+1, len(v.searchResults))
+		} else {
+			content += "no matches found"
+		}
+	}
+
 	return v.style.Render(content)
 }
 
 func (v *Viewport) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if v.currentMode == viewportModeSearch {
+		if msg, ok := msg.(tea.KeyMsg); ok && msg.String() == "enter" {
+			v.Search(v.searchInput.Value())
+			return v, nil
+		}
+
+		si, cmd := v.searchInput.Update(msg)
+		v.searchInput = si
+		return v, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -234,6 +278,26 @@ func (v *Viewport) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "G":
 			v.GotoBottom()
+
+		case "n":
+			if v.currentMode == viewportModeSearchNavigation {
+				v.GotoNextSearchResult()
+			}
+
+		case "N":
+			if v.currentMode == viewportModeSearchNavigation {
+				v.GotoPreviousSearchResult()
+			}
+
+		case "/":
+			if v.currentMode == viewportModeNormal || v.currentMode == viewportModeSearchNavigation {
+				v.EnableSearchMode()
+			}
+
+		case "ctrl+c":
+			if v.currentMode != viewportModeNormal {
+				v.EnableNormalMode()
+			}
 		}
 	}
 
@@ -395,6 +459,49 @@ func (v *Viewport) Clear() {
 	v.lines = []string{}
 	v.currentLine = 0
 	v.totalLines = 0
+}
+
+func (v *Viewport) EnableNormalMode() {
+	v.currentMode = viewportModeNormal
+}
+
+func (v *Viewport) EnableSearchMode() {
+	v.searchInput = textinput.New()
+	v.searchInput.Prompt = "search: "
+	v.searchInput.Focus()
+
+	v.currentMode = viewportModeSearch
+}
+
+func (v *Viewport) Search(s string) {
+	// TODO: this does not work if a block is folded. Fix it
+	result := []int{}
+
+	for i, l := range v.lines {
+		if strings.Contains(l, s) {
+			result = append(result, i)
+		}
+	}
+
+	v.searchResults = result
+	v.currentMode = viewportModeSearchNavigation
+	v.currentSearchResult = -1
+
+	v.GotoNextSearchResult()
+}
+
+func (v *Viewport) GotoNextSearchResult() {
+	if len(v.searchResults) > 0 {
+		v.currentSearchResult = (v.currentSearchResult + 1) % len(v.searchResults)
+		v.GotoLine(v.searchResults[v.currentSearchResult])
+	}
+}
+
+func (v *Viewport) GotoPreviousSearchResult() {
+	if len(v.searchResults) > 0 {
+		v.currentSearchResult = (len(v.searchResults) + v.currentSearchResult - 1) % len(v.searchResults)
+		v.GotoLine(v.searchResults[v.currentSearchResult])
+	}
 }
 
 type ViewportOption func(*Viewport)
